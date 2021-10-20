@@ -24,6 +24,14 @@ pub struct Opt {
     #[structopt(short = "H", long = "host", default_value = "0.0.0.0")]
     pub host: Ipv4Addr,
 
+    /// ZMQ Port to bind to for bots.
+    #[structopt(short = "Z", long = "zmq-port", default_value = "28332")]
+    pub zmq_port: u16,
+
+    /// Run in TLS mode.
+    #[structopt(long = "disable-zmq")]
+    pub disable_zmq: bool,
+
     /// Path to the log file. If not provided, logs are only printed to stdout.
     #[structopt(long = "log-file")]
     pub log_file: Option<String>,
