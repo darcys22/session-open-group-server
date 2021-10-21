@@ -56,11 +56,13 @@ async fn main() {
         USES_TLS.store(opt.tls, Ordering::SeqCst);
         // Run in server mode
         logging::init(opt.log_file, opt.log_level);
+        info!("Session Open Group Server");
+        info!("-------------------------");
         if !opt.disable_zmq {
-            let zmqserver = bots::BotService::new();
-            tokio::spawn( async move {
-                let something = zmqserver.start_zmq_service();
-            });
+            let zmqserver = bots::BotService::new()
+                .listen_address(SocketAddr::new(IpAddr::V4(opt.host), opt.zmq_port));
+            zmqserver.start_zmq_service();
+            handlers::set_bot_service(zmqserver);
         }
         let addr = SocketAddr::new(IpAddr::V4(opt.host), opt.port);
         let localhost = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), LOCALHOST_PORT);
@@ -86,7 +88,7 @@ async fn main() {
             .or(routes::get_room_stats())
             .or(routes::get_url());
         if opt.tls {
-            info!("Running on {} with TLS.", addr);
+            info!("HTTP Server running on {} with TLS.", addr);
             let serve_public_routes_future = warp::serve(public_routes)
                 .tls()
                 .cert_path(opt.tls_certificate)
@@ -96,7 +98,7 @@ async fn main() {
             // Keep futures alive
             join!(db_maintenance_future, serve_public_routes_future, serve_private_routes_future);
         } else {
-            info!("Running on {}.", addr);
+            info!("HTTP Server running on {}.", addr);
             let serve_public_routes_future = warp::serve(public_routes).run(addr);
             let serve_private_routes_future = warp::serve(private_routes).run(localhost);
             // Keep futures alive

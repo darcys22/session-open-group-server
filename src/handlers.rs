@@ -19,6 +19,7 @@ use warp::{http::StatusCode, reply::Reply, reply::Response, Rejection};
 use super::crypto;
 use super::errors::Error;
 use super::models;
+use super::bots;
 use super::models::{OldMessage, Room, User};
 use super::rpc;
 use super::storage::{self, db_error};
@@ -87,6 +88,14 @@ pub const UPLOAD_DEFAULT_EXPIRY: Duration = Duration::from_secs(15 * 86400);
 pub const TOKEN_ID_SIZE: usize = 33;
 pub const TOKEN_SIG_SIZE: usize = 64;
 pub const TOKEN_SIZE: usize = TOKEN_ID_SIZE + TOKEN_SIG_SIZE;
+
+//TODO sean this should be in a struct somewhere instead
+static mut BOT_SERVICE: Option<bots::BotService> = None;
+pub fn set_bot_service(bot: bots::BotService) {
+    unsafe {
+        BOT_SERVICE = Some(bot);
+    }
+}
 
 // Rooms
 //
@@ -545,6 +554,12 @@ pub fn decode_hex_or_b64(value: &str, byte_size: usize) -> Result<Vec<u8>, Error
 }
 
 pub fn insert_or_update_user(conn: &rusqlite::Connection, session_id: &str) -> Result<User, Error> {
+
+    unsafe {
+        if let Some(service) = &BOT_SERVICE {
+            service.user_join_channel.send(String::from(session_id));
+        }
+    }
     Ok(conn
         .prepare_cached(
             "INSERT INTO users (session_id) VALUES (?) \
