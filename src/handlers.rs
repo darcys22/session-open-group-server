@@ -555,6 +555,8 @@ pub fn decode_hex_or_b64(value: &str, byte_size: usize) -> Result<Vec<u8>, Error
 
 pub fn insert_or_update_user(conn: &rusqlite::Connection, session_id: &str) -> Result<User, Error> {
 
+    //TODO sean differentiate if this is insert or an update, only do actions for join and needs to
+    //be specific to a room somehow
     unsafe {
         if let Some(service) = &BOT_SERVICE {
             service.user_join_channel.send(String::from(session_id));
@@ -569,6 +571,30 @@ pub fn insert_or_update_user(conn: &rusqlite::Connection, session_id: &str) -> R
         .map_err(db_error)?
         .query_row(params![&session_id], User::from_row)
         .map_err(db_error)?)
+}
+
+pub fn update_user_state(conn: &rusqlite::Connection, session_id: &str, user: &User, room: &Room, state: &str) -> Result<User, Error> {
+
+    if !is_session_id(&session_id) {
+        warn!("Ignoring update state request: invalid session_id.");
+        return Err(Error::ValidationFailed.into());
+    }
+
+    let mut auth = AuthorizationRequired { moderator: true, ..Default::default() };
+
+    let mut conn = storage::get_conn()?;
+    let tx = storage::get_transaction(&mut conn)?;
+    tx.prepare_cached(
+            "UPDATE room_users 
+                 SET state = ? \
+                 WHERE user = ?, \
+                 AND room = ?",
+        )
+        .map_err(db_error)?
+        .query_row(params![&state, &session_id, &room.id], User::from_row)
+        .map_err(db_error)?;
+
+    require_authorization(&tx, user, room, auth)?;
 }
 
 // Validates a (backwards compat) token string.

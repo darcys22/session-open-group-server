@@ -500,6 +500,22 @@ async fn handle_post_request(
             };
             return handlers::delete_messages(json.ids, &user, &room);
         }
+        "update_user_state" => {
+            reject_if_file_server_mode(path)?;
+            #[derive(Debug, Deserialize)]
+            struct JSON {
+                public_key: String,
+                state: String,
+            }
+            let json: JSON = match serde_json::from_str(&rpc_call.body) {
+                Ok(json) => json,
+                Err(e) => {
+                    warn!("Couldn't parse JSON from '{}': {}.", rpc_call.body, e);
+                    return Err(Error::InvalidRpcCall.into());
+                }
+            };
+            return handlers::update_user_state(&json.public_key,  &user, &room, &json.state).await;
+        }
         _ => {
             warn!("Ignoring RPC call with invalid or unused endpoint: {}.", path);
             return Err(Error::InvalidRpcCall.into());

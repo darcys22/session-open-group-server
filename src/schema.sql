@@ -163,6 +163,7 @@ CREATE TABLE room_users (
     room INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     user INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     last_active FLOAT NOT NULL DEFAULT ((julianday('now') - 2440587.5)*86400.0), /* unix epoch */
+    state INTEGER NOT NULL DEFAULT 0, /* 0 for regular user, 1 for view only, 2 for user in waiting room */
     PRIMARY KEY(room, user)
 ) WITHOUT ROWID;
 CREATE INDEX room_users_room_activity ON room_users(room, last_active);
